@@ -1,42 +1,29 @@
 apiVersion: templates.gatekeeper.sh/v1beta1
 kind: ConstraintTemplate
 metadata:
-  name: k8sazureurluniqueingresshost
+  name: k8sazureurlingresshttpsonly
 spec:
   crd:
     spec:
       names:
-        kind: K8sAzureUrlUniqueIngressHost
-        listKind: K8sAzureUrlUniqueIngressHostList
-        plural: k8sazureurluniqueingresshost
-        singular: k8sazureurluniqueingresshost
+        kind: K8sAzureUrlIngressHttpsOnly
+        listKind: K8sAzureUrlIngressHttpsOnlyList
+        plural: k8sazureurlingresshttpsonly
+        singular: k8sazureurlingresshttpsonly
   targets:
     - target: admission.k8s.gatekeeper.sh
       rego: |
-        package k8sazureurluniqueingresshost
-        identical(obj, review) {
-          obj.metadata.namespace == review.object.metadata.namespace
-          obj.metadata.name == review.object.metadata.name
-        }
-        make_apiversion(kind) = apiVersion {
-          g := kind.group
-          v := kind.version
-          g != ""
-          apiVersion = sprintf("%v/%v", [g, v])
-        }
-        make_apiversion(kind) = apiVersion {
-          kind.group == ""
-          apiVersion = kind.version
-        }
+        package k8sazureurlingresshttpsonly
         violation[{"msg": msg}] {
           input.review.kind.kind == "Ingress"
-          apiVersion := make_apiversion(input.review.kind)
-          apis = ["extensions/v1beta1", "networking.k8s.io/v1beta1"]
-          apiVersion == apis[_]
-          host := input.review.object.spec.rules[_].host
-          other := data.inventory.namespace[ns][otherapi]["Ingress"][name]
-          otherapi == apis[_]
-          other.spec.rules[_].host == host
-          not identical(other, input.review)
-          msg := sprintf("ingress host conflicts with an existing ingress <%v>", [host])
+          re_match("^(extensions|networking.k8s.io)$", input.review.kind.group)
+          ingress = input.review.object
+          not https_complete(ingress)
+          msg := sprintf("Ingress should be https. tls configuration and allow-http=false annotation are required for %v", [ingress.metadata.name])
+        }
+        
+        https_complete(ingress) = true {
+          ingress.spec["tls"]
+          count(ingress.spec.tls) > 0
+          ingress.metadata.annotations["kubernetes.io/ingress.allow-http"] == "false"
         }
