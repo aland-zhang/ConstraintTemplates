@@ -1,0 +1,53 @@
+{
+  "mode": "Microsoft.Kubernetes.Data",
+  "policyRule": {
+    "if": {
+      "field": "type",
+      "in": [
+        "AKS Engine",
+        "Microsoft.Kubernetes/connectedClusters",
+        "Microsoft.ContainerService/managedClusters"
+      ]
+    },
+    "then": {
+      "effect": "[parameters('effect')]",
+      "details": {
+        "constraintTemplate": "https://raw.githubusercontent.com/Azure/azure-policy/master/built-in-references/Kubernetes/container-allowed-images/template.yaml",
+        "constraint": "https://raw.githubusercontent.com/Azure/azure-policy/master/built-in-references/Kubernetes/container-allowed-images/constraint.yaml",
+        "values": {
+          "allowedContainerImagesRegex": "[parameters('allowedContainerImagesRegex')]",
+          "excludedNamespaces": "[parameters('excludedNamespaces')]"
+        }
+      }
+    }
+  },
+  "parameters": {
+    "allowedContainerImagesRegex": {
+      "type": "String",
+      "metadata": {
+        "displayName": "[Preview]: Allowed container images regex",
+        "description": "The RegEx rule used to match allowed container images in a Kubernetes cluster. For example, to allow any Azure Container Registry image by matching partial path: ^.+azurecr.io/.+$"
+      }
+    },
+    "effect": {
+      "type": "String",
+      "metadata": {
+        "displayName": "[Preview]: Effect",
+        "description": "Enable or disable the execution of the policy"
+      },
+      "allowedValues": [
+        "enforceOPAConstraint",
+        "disabled"
+      ],
+      "defaultValue": "enforceOPAConstraint"
+    },
+    "excludedNamespaces": {
+      "type": "Array",
+      "metadata": {
+        "displayName": "[Preview]: Namespace exclusions",
+        "description": "List of Kubernetes namespaces to exclude from policy evaluation. Providing a value for this parameter is optional."
+      },
+      "defaultValue": []
+    }
+  }
+}
